@@ -1,0 +1,133 @@
+/* src/components/AlignmentInterface.css */
+.alignment-interface {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .text-containers {
+    display: flex;
+    gap: 20px;
+  }
+  
+  .source-container, .target-container {
+    flex: 1;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 15px;
+    background-color: #f9f9f9;
+  }
+  
+  .words-container {
+    line-height: 2;
+    min-height: 200px;
+  }
+  
+  .word {
+    display: inline-block;
+    margin: 2px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+  }
+  
+  .word:hover {
+    border-color: #1890ff;
+  }
+  
+  .word.selected {
+    background-color: #e6f7ff;
+    border-color: #1890ff;
+  }
+  
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+  }
+  
+  button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .primary-button {
+    background-color: #1890ff;
+    color: white;
+  }
+  
+  .primary-button:hover {
+    background-color: #40a9ff;
+  }
+  
+  .secondary-button {
+    background-color: #f0f0f0;
+    color: rgba(0, 0, 0, 0.85);
+    border: 1px solid #d9d9d9;
+  }
+  
+  .secondary-button:hover {
+    background-color: #fafafa;
+    border-color: #1890ff;
+    color: #1890ff;
+  }
+  
+  button:disabled {
+    background-color: #d9d9d9;
+    color: rgba(0, 0, 0, 0.25);
+    cursor: not-allowed;
+  }
+  
+  .alignments-table {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 15px;
+    overflow-x: auto;
+  }
+  
+  .alignments-table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .alignments-table th {
+    background-color: #fafafa;
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 500;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .alignments-table td {
+    padding: 12px 8px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .delete-button {
+    background-color: #ff4d4f;
+    color: white;
+  }
+  
+  .delete-button:hover {
+    background-color: #ff7875;
+  }
+
+  .sentence-selector {
+    margin-bottom: 20px;
+  }
+  
+  .sentence-selector select {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #d9d9d9;
+    background-color: white;
+    min-width: 300px;
+    margin-left: 10px;
+  }
