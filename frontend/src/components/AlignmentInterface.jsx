@@ -74,24 +74,36 @@ const AlignmentInterface = () => {
   };
 
   // Create alignment between selected words/phrases
+  // In your AlignmentInterface.jsx
   const createAlignment = () => {
     if (selectedSourceIndices.length === 0 || selectedTargetIndices.length === 0) {
       return;
     }
     
     const newAlignment = {
-      id: Date.now(), // Temporary ID
-      sourceIndices: [...selectedSourceIndices].sort((a, b) => a - b),
-      targetIndices: [...selectedTargetIndices].sort((a, b) => a - b),
-      sentencePairId: 1 // Replace with actual sentence pair ID
+      source_indices: [...selectedSourceIndices].sort((a, b) => a - b),
+      target_indices: [...selectedTargetIndices].sort((a, b) => a - b),
+      sentence_pair_id: currentPairId // Make sure this matches your serializer field
     };
     
-    setAlignments(prev => [...prev, newAlignment]);
+    setAlignments(prev => [...prev, {...newAlignment, id: Date.now()}]);
     
+    // Add this before the apiClient.post call
+    console.log('Sending alignment data:', newAlignment);
     // Save to backend
     apiClient.post('/alignments/', newAlignment)
-      .then(response => console.log('Alignment saved:', response.data))
-      .catch(error => console.error('Error saving alignment:', error));
+      .then(response => {
+        console.log('Alignment saved:', response.data);
+        // Update the local alignment with the correct ID from the server
+        setAlignments(prev => prev.map(a => 
+          a.id === Date.now() ? {...a, id: response.data.id} : a
+        ));
+      })
+      .catch(error => {
+        console.error('Error saving alignment:', error);
+        // Remove the temporary alignment on error
+        setAlignments(prev => prev.filter(a => a.id !== Date.now()));
+      });
     
     // Clear selections
     setSelectedSourceIndices([]);
@@ -112,8 +124,8 @@ const AlignmentInterface = () => {
   const getWordAlignments = (language, index) => {
     return alignments.filter(a => 
       language === 'source' 
-        ? a.sourceIndices.includes(index)
-        : a.targetIndices.includes(index)
+        ? a.source_indices.includes(index)
+        : a.target_indices.includes(index)
     );
   };
 
@@ -135,14 +147,14 @@ const AlignmentInterface = () => {
       header: 'ID',
       cell: info => info.getValue(),
     }),
-    columnHelper.accessor('sourceIndices', {
+    columnHelper.accessor('source_indices', {
       header: 'Source Text',
       cell: info => {
         const indices = info.getValue();
         return indices.map(i => sourceText[i]).join(' ');
       },
     }),
-    columnHelper.accessor('targetIndices', {
+    columnHelper.accessor('target_indices', {
       header: 'Target Text',
       cell: info => {
         const indices = info.getValue();

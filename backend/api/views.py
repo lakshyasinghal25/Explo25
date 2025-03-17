@@ -11,8 +11,4 @@ class AlignmentViewSet(viewsets.ModelViewSet):
     serializer_class = AlignmentSerializer
     
     def perform_create(self, serializer):
-        sentence_pair_id = self.request.data.get('sentence_pair_id')
-        if sentence_pair_id:
-            serializer.save(sentence_pair_id=sentence_pair_id)
-        else:
-            serializer.save()
+        serializer.save()
