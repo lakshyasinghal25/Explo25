@@ -1,4 +1,3 @@
-// src/components/AlignmentInterface.jsx
 import React, { useState, useEffect } from 'react';
 import {
   createColumnHelper,
@@ -7,6 +6,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import apiClient from '../services/api';
+import SentenceEditor from './SentenceEditor';
 import './AlignmentInterface.css';
 
 const AlignmentInterface = () => {
@@ -17,6 +17,9 @@ const AlignmentInterface = () => {
   const [selectedTargetIndices, setSelectedTargetIndices] = useState([]);
   const [sentencePairs, setSentencePairs] = useState([]);
   const [currentPairId, setCurrentPairId] = useState(1);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentSourceSentence, setCurrentSourceSentence] = useState('');
+  const [currentTargetSentence, setCurrentTargetSentence] = useState('');
 
   useEffect(() => {
     const fetchSentencePairs = async () => {
@@ -44,6 +47,8 @@ const AlignmentInterface = () => {
       
       setSourceText(source_sentence.split(' '));
       setTargetText(target_sentence.split(' '));
+      setCurrentSourceSentence(source_sentence);
+      setCurrentTargetSentence(target_sentence);
       
       // Clear previous alignments
       setAlignments(response.data.alignments || []);
@@ -74,7 +79,6 @@ const AlignmentInterface = () => {
   };
 
   // Create alignment between selected words/phrases
-  // In your AlignmentInterface.jsx
   const createAlignment = () => {
     if (selectedSourceIndices.length === 0 || selectedTargetIndices.length === 0) {
       return;
@@ -83,12 +87,11 @@ const AlignmentInterface = () => {
     const newAlignment = {
       source_indices: [...selectedSourceIndices].sort((a, b) => a - b),
       target_indices: [...selectedTargetIndices].sort((a, b) => a - b),
-      sentence_pair_id: currentPairId // Make sure this matches your serializer field
+      sentence_pair_id: currentPairId
     };
     
     setAlignments(prev => [...prev, {...newAlignment, id: Date.now()}]);
     
-    // Add this before the apiClient.post call
     console.log('Sending alignment data:', newAlignment);
     // Save to backend
     apiClient.post('/alignments/', newAlignment)
@@ -181,132 +184,196 @@ const AlignmentInterface = () => {
     getCoreRowModel: getCoreRowModel(),
   });
 
+  // Edit functionality
+  const handleEditClick = () => {
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async (updatedSourceSentence, updatedTargetSentence) => {
+    try {
+      // Update the sentence pair on the server
+      const response = await apiClient.put(`/sentence-pairs/${currentPairId}/`, {
+        source_sentence: updatedSourceSentence,
+        target_sentence: updatedTargetSentence,
+      });
+      
+      console.log('Sentence pair updated:', response.data);
+      
+      // Update the local state
+      setSourceText(updatedSourceSentence.split(' '));
+      setTargetText(updatedTargetSentence.split(' '));
+      setCurrentSourceSentence(updatedSourceSentence);
+      setCurrentTargetSentence(updatedTargetSentence);
+      
+      // Clear alignments as they might no longer be valid
+      setAlignments([]);
+      setSelectedSourceIndices([]);
+      setSelectedTargetIndices([]);
+      
+      // Refresh the sentence pairs list
+      const pairsResponse = await apiClient.get('/sentence-pairs/');
+      setSentencePairs(pairsResponse.data);
+      
+      setIsEditing(false);
+      return true;
+    } catch (error) {
+      console.error('Error updating sentence pair:', error);
+      throw error;
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
   return (
     <div className="alignment-interface">
-        <div className="sentence-selector">
+      <div className="sentence-selector">
         <label htmlFor="sentence-pair">Select Sentence Pair: </label>
         <select 
-            id="sentence-pair"
-            value={currentPairId}
-            onChange={(e) => fetchSentencePair(parseInt(e.target.value))}
+          id="sentence-pair"
+          value={currentPairId}
+          onChange={(e) => fetchSentencePair(parseInt(e.target.value))}
+          disabled={isEditing}
         >
-            {sentencePairs.map(pair => (
+          {sentencePairs.map(pair => (
             <option key={pair.id} value={pair.id}>
-                {pair.source_language} → {pair.target_language}: {pair.source_sentence.substring(0, 30)}...
+              {pair.source_language} → {pair.target_language}: {pair.source_sentence.substring(0, 30)}...
             </option>
-            ))}
+          ))}
         </select>
-        </div>
-      <div className="text-containers">
-        <div className="source-container">
-          <h3>Source Text</h3>
-          <div className="words-container">
-            {sourceText.map((word, index) => {
-              const wordAlignments = getWordAlignments('source', index);
-              const isSelected = selectedSourceIndices.includes(index);
-              
-              return (
-                <span 
-                  key={`source-${index}`}
-                  className={`word ${isSelected ? 'selected' : ''}`}
-                  style={{
-                    backgroundColor: wordAlignments.length > 0 
-                      ? getColorForAlignment(wordAlignments[0].id) 
-                      : isSelected ? '#e6f7ff' : 'transparent'
-                  }}
-                  onClick={() => toggleSourceWord(index)}
-                >
-                  {word}
-                </span>
-              );
-            })}
-          </div>
-        </div>
         
-        <div className="target-container">
-          <h3>Target Text</h3>
-          <div className="words-container">
-            {targetText.map((word, index) => {
-              const wordAlignments = getWordAlignments('target', index);
-              const isSelected = selectedTargetIndices.includes(index);
-              
-              return (
-                <span 
-                  key={`target-${index}`}
-                  className={`word ${isSelected ? 'selected' : ''}`}
-                  style={{
-                    backgroundColor: wordAlignments.length > 0 
-                      ? getColorForAlignment(wordAlignments[0].id) 
-                      : isSelected ? '#e6f7ff' : 'transparent'
-                  }}
-                  onClick={() => toggleTargetWord(index)}
-                >
-                  {word}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="controls">
-        <button 
-          onClick={createAlignment}
-          disabled={selectedSourceIndices.length === 0 || selectedTargetIndices.length === 0}
-          className="primary-button"
-        >
-          Create Alignment
-        </button>
-        
-        <button 
-          onClick={() => {
-            setSelectedSourceIndices([]);
-            setSelectedTargetIndices([]);
-          }}
-          className="secondary-button"
-        >
-          Clear Selection
-        </button>
+        {!isEditing && (
+          <button 
+            onClick={handleEditClick}
+            className="edit-button"
+          >
+            Edit Sentences
+          </button>
+        )}
       </div>
       
-      <div className="alignments-table">
-        <h3>Current Alignments</h3>
-        <table>
-          <thead>
-            {table.getHeaderGroups().map(headerGroup => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map(header => (
-                  <th key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </th>
+      {isEditing ? (
+        <SentenceEditor 
+          sourceSentence={currentSourceSentence}
+          targetSentence={currentTargetSentence}
+          onSave={handleSaveEdit}
+          onCancel={handleCancelEdit}
+        />
+      ) : (
+        <>
+          <div className="text-containers">
+            <div className="source-container">
+              <h3>Source Text</h3>
+              <div className="words-container">
+                {sourceText.map((word, index) => {
+                  const wordAlignments = getWordAlignments('source', index);
+                  const isSelected = selectedSourceIndices.includes(index);
+                  
+                  return (
+                    <span 
+                      key={`source-${index}`}
+                      className={`word ${isSelected ? 'selected' : ''}`}
+                      style={{
+                        backgroundColor: wordAlignments.length > 0 
+                          ? getColorForAlignment(wordAlignments[0].id) 
+                          : isSelected ? '#e6f7ff' : 'transparent'
+                      }}
+                      onClick={() => toggleSourceWord(index)}
+                    >
+                      {word}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="target-container">
+              <h3>Target Text</h3>
+              <div className="words-container">
+                {targetText.map((word, index) => {
+                  const wordAlignments = getWordAlignments('target', index);
+                  const isSelected = selectedTargetIndices.includes(index);
+                  
+                  return (
+                    <span 
+                      key={`target-${index}`}
+                      className={`word ${isSelected ? 'selected' : ''}`}
+                      style={{
+                        backgroundColor: wordAlignments.length > 0 
+                          ? getColorForAlignment(wordAlignments[0].id) 
+                          : isSelected ? '#e6f7ff' : 'transparent'
+                      }}
+                      onClick={() => toggleTargetWord(index)}
+                    >
+                      {word}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="controls">
+            <button 
+              onClick={createAlignment}
+              disabled={selectedSourceIndices.length === 0 || selectedTargetIndices.length === 0}
+              className="primary-button"
+            >
+              Create Alignment
+            </button>
+            
+            <button 
+              onClick={() => {
+                setSelectedSourceIndices([]);
+                setSelectedTargetIndices([]);
+              }}
+              className="secondary-button"
+            >
+              Clear Selection
+            </button>
+          </div>
+          
+          <div className="alignments-table">
+            <h3>Current Alignments</h3>
+            <table>
+              <thead>
+                {table.getHeaderGroups().map(headerGroup => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map(header => (
+                      <th key={header.id}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </th>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map(row => (
-              <tr 
-                key={row.id}
-                style={{ 
-                  backgroundColor: getColorForAlignment(row.original.id),
-                  color: row.original.id % 8 < 4 ? 'black' : 'white'
-                }}
-              >
-                {row.getVisibleCells().map(cell => (
-                  <td key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map(row => (
+                  <tr 
+                    key={row.id}
+                    style={{ 
+                      backgroundColor: getColorForAlignment(row.original.id),
+                      color: row.original.id % 8 < 4 ? 'black' : 'white'
+                    }}
+                  >
+                    {row.getVisibleCells().map(cell => (
+                      <td key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 };

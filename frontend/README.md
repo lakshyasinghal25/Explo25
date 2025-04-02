@@ -4,3 +4,10 @@ merge
 split
 tags
 insert word delete word edit word
+
+
+
+
+react dnd
+react konva
+tanstack table
