@@ -5,6 +5,138 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
+import { useDrag, useDrop } from 'react-dnd';
+import { Stage, Layer, Line } from 'react-konva';
+import apiClient from '../services/api';
+import SentenceEditor from './SentenceEditor';
+import './AlignmentInterface.css';
+
+const AlignmentInterface = () => {
+  const [sentencePairs, setSentencePairs] = useState([]);
+  const [currentPairId, setCurrentPairId] = useState(1);
+  const [sourceText, setSourceText] = useState([]);
+  const [targetText, setTargetText] = useState([]);
+  const [alignments, setAlignments] = useState([]);
+  const [draggedWord, setDraggedWord] = useState(null);
+
+  useEffect(() => {
+    const fetchSentencePairs = async () => {
+      try {
+        const response = await apiClient.get('/sentence-pairs/');
+        setSentencePairs(response.data);
+        if (response.data.length > 0) {
+          fetchSentencePair(response.data[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching sentence pairs:', error);
+      }
+    };
+    fetchSentencePairs();
+  }, []);
+
+  const fetchSentencePair = async (pairId) => {
+    try {
+      const response = await apiClient.get(`/sentence-pairs/${pairId}/`);
+      setSourceText(response.data.source_sentence.split(' '));
+      setTargetText(response.data.target_sentence.split(' '));
+      setAlignments(response.data.alignments || []);
+      setCurrentPairId(pairId);
+    } catch (error) {
+      console.error('Error fetching sentence pair:', error);
+    }
+  };
+
+  const handleDrop = (targetIndex, targetLang) => {
+    if (!draggedWord) return;
+    const newAlignment = {
+      source_indices: draggedWord.lang === 'source' ? [draggedWord.index] : [targetIndex],
+      target_indices: draggedWord.lang === 'target' ? [draggedWord.index] : [targetIndex],
+      sentence_pair_id: currentPairId,
+    };
+    setAlignments([...alignments, newAlignment]);
+    setDraggedWord(null);
+    apiClient.post('/alignments/', newAlignment).catch(error => console.error('Error saving alignment:', error));
+  };
+
+  const DraggableWord = ({ word, index, lang }) => {
+    const [, drag] = useDrag(() => ({
+      type: 'WORD',
+      item: { word, index, lang },
+    }));
+    return <div ref={drag} className="word">{word}</div>;
+  };
+
+  const DroppableWordSlot = ({ index, lang }) => {
+    const [, drop] = useDrop(() => ({
+      accept: 'WORD',
+      drop: () => handleDrop(index, lang),
+    }));
+    return <div ref={drop} className="word-slot"></div>;
+  };
+
+  return (
+    <div className="alignment-interface">
+      <h2>Word Alignment Tool</h2>
+
+      <div className="sentence-selector">
+        <label htmlFor="sentence-pair">Select Sentence Pair: </label>
+        <select 
+          id="sentence-pair"
+          value={currentPairId}
+          onChange={(e) => fetchSentencePair(parseInt(e.target.value))}
+          >
+          {sentencePairs.map(pair => (
+            <option key={pair.id} value={pair.id}>
+              {pair.source_language} → {pair.target_language}: {pair.source_sentence.substring(0, 30)}...
+            </option>
+          ))}
+        </select>
+      </div>
+      
+      <div className="text-containers">
+        <div className="source-container">
+          <h3>Souce Text</h3>
+          {sourceText.map((word, index) => (
+            <div key={index} className="word-container">
+              <DraggableWord word={word} index={index} lang="source" />
+              <DroppableWordSlot index={index} lang="target" />
+            </div>
+          ))}
+        </div>
+        <div className="target-container">
+          <h3>Target Text</h3>
+          {targetText.map((word, index) => (
+            <div key={index} className="word-container">
+              <DroppableWordSlot index={index} lang="source" />
+              <DraggableWord word={word} index={index} lang="target" />
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* <Stage width={500} height={300}>
+        <Layer>
+          {alignments.map((alignment, index) => (
+            <Line key={index} points={[
+              100, alignment.source_indices[0] * 30,
+              400, alignment.target_indices[0] * 30,
+            ]} stroke="black" strokeWidth={2} />
+          ))}
+        </Layer>
+      </Stage> */}
+    </div>
+  );
+};
+
+export default AlignmentInterface;
+
+/*
+import React, { useState, useEffect } from 'react';
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import apiClient from '../services/api';
 import SentenceEditor from './SentenceEditor';
 import './AlignmentInterface.css';
@@ -42,7 +174,7 @@ const AlignmentInterface = () => {
 
   const fetchSentencePair = async (pairId) => {
     try {
-      const response = await apiClient.get(`/sentence-pairs/${pairId}/`);
+      const response = await apiClient.get(/sentence-pairs/${pairId}/);
       const { source_sentence, target_sentence } = response.data;
       
       setSourceText(source_sentence.split(' '));
@@ -118,7 +250,7 @@ const AlignmentInterface = () => {
     setAlignments(prev => prev.filter(a => a.id !== alignmentId));
     
     // Delete from backend
-    apiClient.delete(`/alignments/${alignmentId}/`)
+    apiClient.delete(/alignments/${alignmentId}/)
       .then(() => console.log('Alignment deleted'))
       .catch(error => console.error('Error deleting alignment:', error));
   };
@@ -192,7 +324,7 @@ const AlignmentInterface = () => {
   const handleSaveEdit = async (updatedSourceSentence, updatedTargetSentence) => {
     try {
       // Update the sentence pair on the server
-      const response = await apiClient.put(`/sentence-pairs/${currentPairId}/`, {
+      const response = await apiClient.put(/sentence-pairs/${currentPairId}/, {
         source_sentence: updatedSourceSentence,
         target_sentence: updatedTargetSentence,
       });
@@ -272,8 +404,8 @@ const AlignmentInterface = () => {
                   
                   return (
                     <span 
-                      key={`source-${index}`}
-                      className={`word ${isSelected ? 'selected' : ''}`}
+                      key={source-${index}}
+                      className={word ${isSelected ? 'selected' : ''}}
                       style={{
                         backgroundColor: wordAlignments.length > 0 
                           ? getColorForAlignment(wordAlignments[0].id) 
@@ -297,8 +429,8 @@ const AlignmentInterface = () => {
                   
                   return (
                     <span 
-                      key={`target-${index}`}
-                      className={`word ${isSelected ? 'selected' : ''}`}
+                      key={target-${index}}
+                      className={word ${isSelected ? 'selected' : ''}}
                       style={{
                         backgroundColor: wordAlignments.length > 0 
                           ? getColorForAlignment(wordAlignments[0].id) 
@@ -378,4 +510,5 @@ const AlignmentInterface = () => {
   );
 };
 
-export default AlignmentInterface;
+export default AlignmentInterface; */
+// The above code is a React component for a word alignment interface.
