@@ -1,15 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
-import { useDrag, useDrop } from 'react-dnd';
 import { Stage, Layer, Line } from 'react-konva';
+import React, { useState, useEffect, useRef } from 'react';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import { useReactTable, getCoreRowModel, createColumnHelper, flexRender } from '@tanstack/react-table';
 import apiClient from '../services/api';
-import SentenceEditor from './SentenceEditor';
 import './AlignmentInterface.css';
+
+const columnHelper = createColumnHelper();
+
+const ItemTypes = {
+  WORD: 'word'
+};
+
+const DraggableWord = ({ word, index, lang }) => {
+  const [{ isDragging }, drag] = useDrag({
+    type: ItemTypes.WORD, 
+    item: () => ({ word, index, lang }),
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging()
+    })
+  });
+
+  return (
+    <div 
+      ref={drag} 
+      className={`word ${isDragging ? 'dragging' : ''}`}
+      style={{ opacity: isDragging ? 0.5 : 1 }}
+    >
+      {word}
+    </div>
+  );
+};
+
+const DroppableWordSlot = ({ index, lang, onDrop }) => {
+  const [{ isOver }, drop] = useDrop({
+    accept: ItemTypes.WORD,
+    drop: (item) => onDrop(item, index, lang),
+    collect: (monitor) => ({
+      isOver: !!monitor.isOver()
+    })
+  });
+
+  return (
+    <div 
+      ref={drop} 
+      className={`word-slot ${isOver ? 'hover' : ''}`}
+    ></div>
+  );
+};
 
 const AlignmentInterface = () => {
   const [sentencePairs, setSentencePairs] = useState([]);
@@ -17,7 +55,6 @@ const AlignmentInterface = () => {
   const [sourceText, setSourceText] = useState([]);
   const [targetText, setTargetText] = useState([]);
   const [alignments, setAlignments] = useState([]);
-  const [draggedWord, setDraggedWord] = useState(null);
 
   useEffect(() => {
     const fetchSentencePairs = async () => {
@@ -46,84 +83,93 @@ const AlignmentInterface = () => {
     }
   };
 
-  const handleDrop = (targetIndex, targetLang) => {
-    if (!draggedWord) return;
+  const handleDrop = (draggedItem, targetIndex, targetLang) => {
+    const { word, index: sourceIndex, lang: sourceLang } = draggedItem;
+    
     const newAlignment = {
-      source_indices: draggedWord.lang === 'source' ? [draggedWord.index] : [targetIndex],
-      target_indices: draggedWord.lang === 'target' ? [draggedWord.index] : [targetIndex],
+      source_indices: sourceLang === 'source' ? [sourceIndex] : [targetIndex],
+      target_indices: sourceLang === 'target' ? [sourceIndex] : [targetIndex],
       sentence_pair_id: currentPairId,
     };
-    setAlignments([...alignments, newAlignment]);
-    setDraggedWord(null);
-    apiClient.post('/alignments/', newAlignment).catch(error => console.error('Error saving alignment:', error));
+    
+    setAlignments(prev => [...prev, newAlignment]);
+    
+    apiClient.post('/alignments/', newAlignment)
+      .catch(error => console.error('Error saving alignment:', error));
   };
 
-  const DraggableWord = ({ word, index, lang }) => {
-    const [, drag] = useDrag(() => ({
-      type: 'WORD',
-      item: { word, index, lang },
-    }));
-    return <div ref={drag} className="word">{word}</div>;
-  };
+  // Constructing the table data
+  const data = sourceText.map((sourceWord, index) => ({
+    id: index,
+    source: <DraggableWord word={sourceWord} index={index} lang="source" />,
+    target: targetText[index] ? (
+      <DraggableWord word={targetText[index]} index={index} lang="target" />
+    ) : (
+      <DroppableWordSlot index={index} lang="target" onDrop={handleDrop} />
+    ),
+  }));
 
-  const DroppableWordSlot = ({ index, lang }) => {
-    const [, drop] = useDrop(() => ({
-      accept: 'WORD',
-      drop: () => handleDrop(index, lang),
-    }));
-    return <div ref={drop} className="word-slot"></div>;
-  };
+  const columns = [
+    columnHelper.accessor('source', {
+      header: 'Source Words',
+      cell: (info) => info.getValue(),
+    }),
+    columnHelper.accessor('target', {
+      header: 'Target Words',
+      cell: (info) => info.getValue(),
+    }),
+  ];
+
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
 
   return (
-    <div className="alignment-interface">
-      <h2>Word Alignment Tool</h2>
+      <div className="alignment-interface">
+        <h2>Word Alignment Tool</h2>
 
-      <div className="sentence-selector">
-        <label htmlFor="sentence-pair">Select Sentence Pair: </label>
-        <select 
-          id="sentence-pair"
-          value={currentPairId}
-          onChange={(e) => fetchSentencePair(parseInt(e.target.value))}
+        <div className="sentence-selector">
+          <label htmlFor="sentence-pair">Select Sentence Pair: </label>
+          <select 
+            id="sentence-pair"
+            value={currentPairId}
+            onChange={(e) => fetchSentencePair(parseInt(e.target.value))}
           >
-          {sentencePairs.map(pair => (
-            <option key={pair.id} value={pair.id}>
-              {pair.source_language} → {pair.target_language}: {pair.source_sentence.substring(0, 30)}...
-            </option>
-          ))}
-        </select>
-      </div>
-      
-      <div className="text-containers">
-        <div className="source-container">
-          <h3>Souce Text</h3>
-          {sourceText.map((word, index) => (
-            <div key={index} className="word-container">
-              <DraggableWord word={word} index={index} lang="source" />
-              <DroppableWordSlot index={index} lang="target" />
-            </div>
-          ))}
+            {sentencePairs.map(pair => (
+              <option key={pair.id} value={pair.id}>
+                {pair.source_language} → {pair.target_language}: {pair.source_sentence.substring(0, 30)}...
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="target-container">
-          <h3>Target Text</h3>
-          {targetText.map((word, index) => (
-            <div key={index} className="word-container">
-              <DroppableWordSlot index={index} lang="source" />
-              <DraggableWord word={word} index={index} lang="target" />
-            </div>
-          ))}
-        </div>
+
+        <table className="alignment-table">
+          <thead>
+            {table.getHeaderGroups().map(headerGroup => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <th key={header.id}>
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map(row => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map(cell => (
+                  <td key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      {/* <Stage width={500} height={300}>
-        <Layer>
-          {alignments.map((alignment, index) => (
-            <Line key={index} points={[
-              100, alignment.source_indices[0] * 30,
-              400, alignment.target_indices[0] * 30,
-            ]} stroke="black" strokeWidth={2} />
-          ))}
-        </Layer>
-      </Stage> */}
-    </div>
   );
 };
 

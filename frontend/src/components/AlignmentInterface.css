@@ -26,18 +26,40 @@
     min-height: 200px;
   }
   
+  .alignment-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  
+  .alignment-table th, .alignment-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+  }
+  
   .word {
-    display: inline-block;
-    margin: 2px;
-    padding: 3px 6px;
-    border-radius: 3px;
-    cursor: pointer;
-    user-select: none;
-    border: 1px solid transparent;
+    padding: 5px;
+    border-radius: 4px;
+    cursor: grab;
+    background-color: #f0f0f0;
+    transition: background-color 0.3s;
   }
   
   .word:hover {
-    border-color: #1890ff;
+    background-color: #ddd;
+  }
+  
+  .word-slot {
+    width: 50px;
+    height: 30px;
+    border: 2px dashed #ccc;
+    background-color: #f9f9f9;
+    transition: background-color 0.3s;
+  }
+  
+  .word-slot:hover {
+    background-color: lightblue;
   }
   
   .word.selected {
@@ -85,30 +107,11 @@
     cursor: not-allowed;
   }
   
-  .alignments-table {
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    padding: 15px;
-    overflow-x: auto;
-  }
-  
   .alignments-table table {
     width: 100%;
     border-collapse: collapse;
   }
   
-  .alignments-table th {
-    background-color: #fafafa;
-    padding: 12px 8px;
-    text-align: left;
-    font-weight: 500;
-    border-bottom: 1px solid #e0e0e0;
-  }
-  
-  .alignments-table td {
-    padding: 12px 8px;
-    border-bottom: 1px solid #e0e0e0;
-  }
   
   .delete-button {
     background-color: #ff4d4f;
