@@ -1,10 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
 import { useDrag, useDrop } from 'react-dnd';
 import { Stage, Layer, Line } from 'react-konva';
 import apiClient from '../services/api';
@@ -17,7 +11,6 @@ const AlignmentInterface = () => {
   const [sourceText, setSourceText] = useState([]);
   const [targetText, setTargetText] = useState([]);
   const [alignments, setAlignments] = useState([]);
-  const [draggedWord, setDraggedWord] = useState(null);
   const [linePoints, setLinePoints] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [currentSourceSentence, setCurrentSourceSentence] = useState('');
@@ -73,8 +66,8 @@ const AlignmentInterface = () => {
 
     // Check if this alignment already exists
     const alignmentExists = alignments.some(alignment =>
-        alignment.source_indices == (sourceIndex) &&
-        alignment.target_indices == (targetIndexFinal)
+        alignment.source_indices === (sourceIndex) &&
+        alignment.target_indices === (targetIndexFinal)
     );
 
     if (alignmentExists) {
