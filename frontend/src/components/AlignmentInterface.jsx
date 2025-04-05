@@ -19,6 +19,9 @@ const AlignmentInterface = () => {
   const [alignments, setAlignments] = useState([]);
   const [draggedWord, setDraggedWord] = useState(null);
   const [linePoints, setLinePoints] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentSourceSentence, setCurrentSourceSentence] = useState('');
+  const [currentTargetSentence, setCurrentTargetSentence] = useState('');
 
   const sourceRefs = useRef([]);
   const targetRefs = useRef([]);
@@ -56,6 +59,8 @@ const AlignmentInterface = () => {
       setTargetText(response.data.target_sentence.split(' '));
       setAlignments(response.data.alignments || []);
       setCurrentPairId(pairId);
+      setCurrentSourceSentence(response.data.source_sentence);
+      setCurrentTargetSentence(response.data.target_sentence);
     } catch (error) {
       console.error('Error fetching sentence pair:', error);
     }
@@ -139,9 +144,7 @@ const AlignmentInterface = () => {
   const getWordCenter = (ref, lang) => {
     const rect = ref?.getBoundingClientRect();
     const stageRect = stageRef.current?.container().getBoundingClientRect();
-    // console.log('rect', rect);
-    // console.log('stageRect', stageRect);
-    console.log('ref', ref);
+    // console.log('ref', ref);
     if (!rect || !stageRect) return { x: 0, y: 0 };
     
     if(lang === "source") return {
@@ -154,6 +157,47 @@ const AlignmentInterface = () => {
     };
   };
 
+  // Edit functionality
+  const handleEditClick = () => {
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async (updatedSourceSentence, updatedTargetSentence) => {
+    try {
+      // Update the sentence pair on the server
+      const response = await apiClient.put(`/sentence-pairs/${currentPairId}/`, {
+        source_sentence: updatedSourceSentence,
+        target_sentence: updatedTargetSentence,
+      });
+      
+      console.log('Sentence pair updated:', response.data);
+      
+      // Update the local state
+      setSourceText(updatedSourceSentence.split(' '));
+      setTargetText(updatedTargetSentence.split(' '));
+      setCurrentSourceSentence(updatedSourceSentence);
+      setCurrentTargetSentence(updatedTargetSentence);
+      
+      // Clear alignments as they might no longer be valid
+      setAlignments([]);
+      
+      // Refresh the sentence pairs list
+      const pairsResponse = await apiClient.get('/sentence-pairs/');
+      setSentencePairs(pairsResponse.data);
+      
+      setIsEditing(false);
+      return true;
+    } catch (error) {
+      console.error('Error updating sentence pair:', error);
+      throw error;
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+
   return (
     <div className="alignment-interface">
       <h2>Word Alignment Tool</h2>
@@ -164,15 +208,34 @@ const AlignmentInterface = () => {
           id="sentence-pair"
           value={currentPairId}
           onChange={(e) => fetchSentencePair(parseInt(e.target.value))}
-          >
+          disabled={isEditing}
+        >
           {sentencePairs.map(pair => (
             <option key={pair.id} value={pair.id}>
               {pair.source_language} → {pair.target_language}: {pair.source_sentence.substring(0, 30)}...
             </option>
           ))}
         </select>
+        
+        {!isEditing && (
+          <button 
+            onClick={handleEditClick}
+            className="edit-button"
+          >
+            Edit Sentences
+          </button>
+        )}
       </div>
       
+      {isEditing ? (
+        <SentenceEditor 
+          sourceSentence={currentSourceSentence}
+          targetSentence={currentTargetSentence}
+          onSave={handleSaveEdit}
+          onCancel={handleCancelEdit}
+        />
+      ) : (
+        <>
       <div className="text-containers">
         <div className="source-container">
           <div className="heading"><h3>Source Text</h3></div>
@@ -227,7 +290,7 @@ const AlignmentInterface = () => {
           ))}
         </Layer>
       </Stage>
-
+    </>)}
     </div>
   );
 };
@@ -489,8 +552,39 @@ const AlignmentInterface = () => {
           </button>
         )}
       </div>
+      <div className="sentence-selector">
+        <label htmlFor="sentence-pair">Select Sentence Pair: </label>
+        <select 
+          id="sentence-pair"
+          value={currentPairId}
+          onChange={(e) => fetchSentencePair(parseInt(e.target.value))}
+          disabled={isEditing}
+        >
+          {sentencePairs.map(pair => (
+            <option key={pair.id} value={pair.id}>
+              {pair.source_language} → {pair.target_language}: {pair.source_sentence.substring(0, 30)}...
+            </option>
+          ))}
+        </select>
+        
+        {!isEditing && (
+          <button 
+            onClick={handleEditClick}
+            className="edit-button"
+          >
+            Edit Sentences
+          </button>
+        )}
+      </div>
       
       {isEditing ? (
+        <SentenceEditor 
+          sourceSentence={currentSourceSentence}
+          targetSentence={currentTargetSentence}
+          onSave={handleSaveEdit}
+          onCancel={handleCancelEdit}
+        />
+      ) :
         <SentenceEditor 
           sourceSentence={currentSourceSentence}
           targetSentence={currentTargetSentence}

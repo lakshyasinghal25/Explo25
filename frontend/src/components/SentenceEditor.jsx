@@ -12,6 +12,9 @@ const SentenceEditor = ({
   const [editableTargetSentence, setEditableTargetSentence] = useState(targetSentence);
   const [isSaving, setIsSaving] = useState(false);
 
+  console.log('Editable Source Sentence:', sourceSentence);
+  console.log('Editable Target Sentence:', targetSentence);
+
   const handleSave = async () => {
     if (editableSourceSentence.trim() === '' || editableTargetSentence.trim() === '') {
       alert('Source and target sentences cannot be empty');

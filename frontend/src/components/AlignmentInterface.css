@@ -151,17 +151,4 @@
     min-width: 300px;
     margin-left: 10px;
   }
-
-  .alignment-zone {
-    position: relative;
-    /* width: 1000px;
-    height: 500px; */
-  }
   
-  .konva-stage {
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 0;
-    pointer-events: none; /* 👈 This is key: it allows DOM events to pass through */
-  }
