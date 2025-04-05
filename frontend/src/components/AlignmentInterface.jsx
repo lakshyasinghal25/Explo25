@@ -18,7 +18,22 @@ const AlignmentInterface = () => {
   const [targetText, setTargetText] = useState([]);
   const [alignments, setAlignments] = useState([]);
   const [draggedWord, setDraggedWord] = useState(null);
+  const [linePoints, setLinePoints] = useState([]);
 
+  const sourceRefs = useRef([]);
+  const targetRefs = useRef([]);
+  const stageRef = useRef(null);
+
+  useEffect(() => {
+    const points = alignments.map(({ source_indices, target_indices }) => {
+      const sourcePos = getWordCenter(sourceRefs.current[source_indices[0]], "source");
+      const targetPos = getWordCenter(targetRefs.current[target_indices[0]], "target");
+      return { from: sourcePos, to: targetPos };
+    });
+    // console.log('Line points:', points);
+    setLinePoints(points);
+  }, [alignments, sourceText, targetText]);
+  
   useEffect(() => {
     const fetchSentencePairs = async () => {
       try {
@@ -121,6 +136,23 @@ const AlignmentInterface = () => {
     );
   };
   
+  const getWordCenter = (ref, lang) => {
+    const rect = ref?.getBoundingClientRect();
+    const stageRect = stageRef.current?.container().getBoundingClientRect();
+    // console.log('rect', rect);
+    // console.log('stageRect', stageRect);
+    console.log('ref', ref);
+    if (!rect || !stageRect) return { x: 0, y: 0 };
+    
+    if(lang === "source") return {
+      x: 50 + rect.left + rect.width / 2 - stageRect.left,
+      y: rect.top + rect.height / 2 - stageRect.top,
+    };
+    else return {
+      x: rect.left + rect.width / 2 - stageRect.left - 50,
+      y: rect.top + rect.height / 2 - stageRect.top,
+    };
+  };
 
   return (
     <div className="alignment-interface">
@@ -142,43 +174,60 @@ const AlignmentInterface = () => {
       </div>
       
       <div className="text-containers">
-      <div className="source-container">
-        <h3>Source Text</h3>
-        {sourceText.map((word, index) => (
-          <DraggableDroppableWord
-            key={index}
-            word={word}
-            index={index}
-            lang="source"
-            onDrop={handleDrop}
-          />
-        ))}
+        <div className="source-container">
+          <div className="heading"><h3>Source Text</h3></div>
+          {sourceText.map((word, index) => (
+            <div ref={el => sourceRefs.current[index] = el} key={index}>
+              <DraggableDroppableWord
+                word={word}
+                index={index}
+                lang="source"
+                onDrop={handleDrop}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="target-container">
+        <div className="heading"><h3>Target Text</h3></div>
+          {targetText.map((word, index) => (
+            <div ref={el => targetRefs.current[index] = el} key={index}>
+              <DraggableDroppableWord
+                word={word}
+                index={index}
+                lang="target"
+                onDrop={handleDrop}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="target-container">
-        <h3>Target Text</h3>
-        {targetText.map((word, index) => (
-          <DraggableDroppableWord
-            key={index}
-            word={word}
-            index={index}
-            lang="target"
-            onDrop={handleDrop}
-          />
-        ))}
-      </div>
 
-      </div>
-      {/* <Stage width={500} height={300}>
+      <Stage
+        width={window.innerWidth}
+        height={window.innerHeight}
+        ref={stageRef}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          zIndex: 0,
+          pointerEvents: 'none',
+        }}
+      >
         <Layer>
-          {alignments.map((alignment, index) => (
-            <Line key={index} points={[
-              100, alignment.source_indices[0] * 30,
-              400, alignment.target_indices[0] * 30,
-            ]} stroke="black" strokeWidth={2} />
+          {linePoints.map((line, idx) => (
+            <Line
+              key={idx}
+              points={[line.from.x, line.from.y, line.to.x, line.to.y]}
+              stroke="red"
+              strokeWidth={2}
+            />
           ))}
         </Layer>
-      </Stage> */}
+      </Stage>
+
     </div>
   );
 };
