@@ -21,6 +21,8 @@ const AlignmentInterface = () => {
   const [alignmentMode, setAlignmentMode] = useState("drag");
   const [selectedSourceIndex, setSelectedSourceIndex] = useState(null);
   const [selectedTargetIndex, setSelectedTargetIndex] = useState(null);
+  const [showIdSearch, setShowIdSearch] = useState(false);
+  const [sentencePairInputId, setSentencePairInputId] = useState("");
 
 
   const sourceRefs = useRef([]);
@@ -323,13 +325,27 @@ const AlignmentInterface = () => {
     setShowModalReset(false);
   };
   
+  const handleSelectById = (id) => {
+    console.log("Selected ID:", id);
+    const index = sentencePairs.findIndex(pair => pair.id === id);
+    if (index !== -1) {
+      fetchSentencePair(id);
+      setSelectedSourceIndex(null);
+      setSelectedTargetIndex(null);
+      setShowIdSearch(false);
+      setSentencePairInputId(""); 
+    } else {
+      alert("Sentence Pair ID not found!");
+    }
+  };
+  
 
   return (
     <div className="alignment-interface">
       <h2>Word Alignment Tool</h2>
 
       <div className="sentence-selector">
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <label htmlFor="sentence-pair">Select Sentence Pair: </label>
           <select 
             id="sentence-pair"
@@ -339,10 +355,38 @@ const AlignmentInterface = () => {
           >
             {sentencePairs.map(pair => (
               <option key={pair.id} value={pair.id}>
+                {pair.id}:  
                 {pair.source_language} → {pair.target_language}: {pair.source_sentence.substring(0, 30)}...
               </option>
             ))}
           </select>
+
+          <button
+            style={{ padding: "2px 6px", fontSize: "0.9rem" }}
+            onClick={() => setShowIdSearch((prev) => !prev)}
+          >
+            🔍
+          </button>
+
+          {showIdSearch && (
+            <div style={{ marginTop: "8px", display: "flex", gap: "6px" }}>
+              <input
+                type="number"
+                placeholder="Enter Sentence Pair ID"
+                value={sentencePairInputId}
+                onChange={(e) => setSentencePairInputId(e.target.value)}
+                style={{ padding: "4px", width: "150px" }}
+              />
+              <button
+                onClick={() => handleSelectById(Number(sentencePairInputId))}
+                disabled={!sentencePairInputId}
+                style={{ padding: "4px 8px" }}
+              >
+                Go
+              </button>
+            </div>
+          )}
+
         </div>        
         {!isEditing && (
           <div className='edit-controls'>
