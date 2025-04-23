@@ -61,18 +61,33 @@ const AlignmentInterface = () => {
 
   const handleDrop = (draggedItem, targetIndex, targetLang) => {
     // Extract source & target indices based on the dragged item's language
+    
     const sourceIndex = draggedItem.lang === 'source' ? draggedItem.index : targetIndex;
     const targetIndexFinal = draggedItem.lang === 'target' ? draggedItem.index : targetIndex;
 
-    // Check if this alignment already exists
-    const alignmentExists = alignments.some(alignment =>
-        alignment.source_indices === (sourceIndex) &&
-        alignment.target_indices === (targetIndexFinal)
+    const existingAlignmentIndex = alignments.findIndex(alignment =>
+      alignment.source_indices.includes(sourceIndex) &&
+      alignment.target_indices.includes(targetIndexFinal)
     );
 
-    if (alignmentExists) {
-        console.log("Alignment already exists:", { sourceIndex, targetIndexFinal });
-        return; // Exit early if the alignment is already present
+    if (existingAlignmentIndex !== -1) {
+        // Remove the existing alignment
+        const alignmentToRemove = alignments[existingAlignmentIndex];
+        console.log("Removing existing alignment:", alignmentToRemove);
+
+        // Update the state to remove the alignment
+        setAlignments(prevAlignments =>
+            prevAlignments.filter((_, index) => index !== existingAlignmentIndex)
+        );
+
+        // Remove the alignment from the backend
+        apiClient.delete(`/alignments/${alignmentToRemove.id}/`)
+            .then(() => {
+              console.log("Alignment removed from backend");
+            })
+            .catch(error => console.error("Error removing alignment from backend:", error));
+
+        return; // Exit after removing the alignment
     }
 
     const newAlignment = {
@@ -84,8 +99,17 @@ const AlignmentInterface = () => {
     setAlignments(prevAlignments => [...prevAlignments, newAlignment]);
 
     apiClient.post('/alignments/', newAlignment)
-        .then(response => console.log("Alignment saved:", response.data))
-        .catch(error => console.error('Error saving alignment:', error));
+      .then(response => {
+          console.log("Alignment saved:", response.data);
+          setAlignments(prevAlignments =>
+              prevAlignments.map(alignment =>
+                  alignment === newAlignment ? { ...alignment, id: response.data.id } : alignment
+              )
+          );
+      })
+      .catch(error => {
+        console.error('Error saving alignment:', error);
+      });
   };
 
 
@@ -287,6 +311,7 @@ const AlignmentInterface = () => {
     </div>
   );
 };
+
 
 export default AlignmentInterface;
 
