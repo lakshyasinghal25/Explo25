@@ -2,6 +2,9 @@ from rest_framework import viewsets
 from rest_framework.response import Response
 from .models import SentencePair, Alignment
 from .serializers import SentencePairSerializer, AlignmentSerializer
+from rest_framework.decorators import action
+from rest_framework import status
+
 
 class SentencePairViewSet(viewsets.ModelViewSet):
     queryset = SentencePair.objects.all()
@@ -29,3 +32,8 @@ class AlignmentViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save()
+
+    @action(detail=False, methods=['delete'], url_path='reset-all')
+    def reset_all(self, request):
+        Alignment.objects.all().delete()
+        return Response({"message": "All alignments deleted."}, status=status.HTTP_204_NO_CONTENT)

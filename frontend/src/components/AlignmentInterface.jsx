@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, use } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
 import { Stage, Layer, Line } from 'react-konva';
 import apiClient from '../services/api';
 import SentenceEditor from './SentenceEditor';
 import './AlignmentInterface.css';
+import ConfirmationalModal from './ConfirmationalModal';
 
 const AlignmentInterface = () => {
   const [sentencePairs, setSentencePairs] = useState([]);
@@ -15,6 +16,8 @@ const AlignmentInterface = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentSourceSentence, setCurrentSourceSentence] = useState('');
   const [currentTargetSentence, setCurrentTargetSentence] = useState('');
+  const [showModalClear, setShowModalClear] = useState(false);
+  const [showModalReset, setShowModalReset] = useState(false);
 
   const sourceRefs = useRef([]);
   const targetRefs = useRef([]);
@@ -214,6 +217,71 @@ const AlignmentInterface = () => {
     setIsEditing(false);
   };
 
+  const goToFirstPair = () => {
+    if (sentencePairs.length > 0) {
+      fetchSentencePair(sentencePairs[0].id);
+    }
+  };
+  
+  const goToPreviousPair = () => {
+    const currentIndex = sentencePairs.findIndex(pair => pair.id === currentPairId);
+    if (currentIndex > 0) {
+      fetchSentencePair(sentencePairs[currentIndex - 1].id);
+    }
+  };
+  
+  const goToNextPair = () => {
+    const currentIndex = sentencePairs.findIndex(pair => pair.id === currentPairId);
+    if (currentIndex < sentencePairs.length - 1) {
+      fetchSentencePair(sentencePairs[currentIndex + 1].id);
+    }
+  };
+  
+  const goToLastPair = () => {
+    if (sentencePairs.length > 0) {
+      fetchSentencePair(sentencePairs[sentencePairs.length - 1].id);
+    }
+  };
+  
+  const handleClearClick = () => {
+    setShowModalClear(true);
+  };
+  const cancelClear = () => {
+    setShowModalClear(false);
+  };
+  const handleResetClick = () => {
+    setShowModalReset(true);
+  };
+  const cancelReset = () => {
+    setShowModalReset(false);
+  };
+
+  const handleClearCurrentAlignments = async () => {
+    try {
+      const alignmentIds = alignments.map(a => a.id);
+      for (let id of alignmentIds) {
+        await apiClient.delete(`/alignments/${id}/`);
+      }
+      setAlignments([]);
+      console.log("All current alignments cleared.");
+    } catch (error) {
+      console.error("Error clearing current alignments:", error);
+    }
+    setShowModalClear(false);
+  };
+  
+  const handleResetAllAlignments = async () => {
+    try {
+      await apiClient.delete('/alignments/reset-all/'); // Assuming your backend has this route
+      setAlignments([]);
+      fetchSentencePair(currentPairId); // Refresh current sentence pair
+      console.log("All alignments reset.");
+    } catch (error) {
+      console.error("Error resetting all alignments:", error);
+    }
+    setShowModalReset(false);
+  };
+  
 
   return (
     <div className="alignment-interface">
@@ -235,12 +303,15 @@ const AlignmentInterface = () => {
         </select>
         
         {!isEditing && (
-          <button 
-            onClick={handleEditClick}
-            className="edit-button"
-          >
-            Edit Sentences
-          </button>
+          <span>
+            <button 
+              onClick={handleEditClick}
+              className="editbutton"
+            >
+              Edit Sentences
+            </button>
+            <span className="edit-warning">⚠️ Editing will remove all the existing alignments hence edit at start</span>
+          </span>
         )}
       </div>
       
@@ -307,11 +378,38 @@ const AlignmentInterface = () => {
           ))}
         </Layer>
       </Stage>
-    </>)}
+      
+      <div className="options">
+        <div className="controls">
+          <button onClick={goToFirstPair} disabled={isEditing}>⏮ First Sentence</button>
+          <button onClick={goToPreviousPair} disabled={isEditing}>◀ Previous Sentence</button>
+          <button onClick={goToNextPair} disabled={isEditing}>Next Sentence ▶</button>
+          <button onClick={goToLastPair} disabled={isEditing}>Last Sentence ⏭</button>
+        </div>
+        <div className="reset">
+          <button onClick={handleClearClick}>Clear Alignments</button>
+            {showModalClear && (
+              <ConfirmationalModal
+                message="Are you sure you want to clear all alignments for the current sentence pair?"
+                onConfirm={handleClearCurrentAlignments}
+                onCancel={cancelClear}
+              />
+            )}
+          <button className="delete-button" onClick={handleResetClick}> Reset All Alignments </button>
+            {showModalReset && (
+                <ConfirmationalModal
+                  message="This will delete all alignments across all sentence pairs. Are you absolutely sure?"
+                  onConfirm={handleResetAllAlignments}
+                  onCancel={cancelReset}
+                />
+              )}
+        </div>
+      </div>
+
+      </>)}
     </div>
   );
 };
-
 
 export default AlignmentInterface;
 
