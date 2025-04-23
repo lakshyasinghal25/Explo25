@@ -172,13 +172,29 @@
     min-width: 300px;
     margin-left: 10px;
   }
-  
+
+  .sentence-selector{
+    display: flex;
+    gap: 10px;
+    /* margin: 15px; */
+    justify-content: space-between;
+  }
+
+  .edit-controls{
+    display: flex;
+    gap: 10px;
+    margin: 5px;
+    /* justify-content: right; */
+    align-items: end;
+  }
+
   .options{
     display: flex;
     gap: 10px;
     margin: 15px 0 30px;
     justify-content: space-between;
   }
+
   .controls {
     display: flex;
     gap: 10px;

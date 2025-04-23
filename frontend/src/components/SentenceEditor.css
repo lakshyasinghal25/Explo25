@@ -12,6 +12,17 @@ gap: 20px;
 margin-bottom: 15px;
 }
 
+.editwarning {
+  color: #a8071a; /* dark red text */
+  font-size: 0.9rem;
+  background-color: #fff1f0; /* light red background */
+  padding: 4px 8px;
+  border: 1px solid #ffa39e; /* red border */
+  border-radius: 4px;
+  margin-left: 5px;
+  margin-bottom: 10px; ;
+}
+
 .source-editor,
 .target-editor {
 flex: 1;

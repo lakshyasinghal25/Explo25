@@ -34,6 +34,7 @@ const SentenceEditor = ({
 
   return (
     <div className="sentence-editor">
+      <div className="editwarning">⚠️ Editing will remove all the existing alignments</div>
       <div className="editor-container">
         <div className="source-editor">
           <h3>Edit Source Text</h3>
